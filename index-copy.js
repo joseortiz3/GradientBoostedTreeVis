@@ -63,19 +63,19 @@ function tree() {
 
 				// compute the new tree layout
 				// This is not very intuitive, poor choice. ( replace with .children )
-		        var nodesOriginal = d3_tree.descendants(), // This is the root node and its children
+		        var nodesVisible = d3_tree.descendants(), // This is the root node and its children
 		            nodesThatAreChildren = d3_tree.descendants().slice(1); // These are just the children
 
 				// Controls the distance between nodes.
 				debugger;
-		        nodesOriginal.forEach(function(d) { d.y = d.depth * 180; });
+		        nodesVisible.forEach(function(d) { d.y = d.depth * 180; });
 
 		        // ****************** NODES section ***************************
 
 		        // update the nodes ...
 				var nodesOriginal = svg.selectAll('g.node')
 					// use .id as a key for data association
-					.data(nodesOriginal, function(d) { return d.id || (d.id = ++i); });
+					.data(nodesVisible, function(d) { return d.id || (d.id = ++i); });
 					// if id not set, set it to ++i
 
 				// Enter any new nodes at the parent's previous position.
@@ -190,7 +190,7 @@ function tree() {
 			        .remove();
 
 		        // store the old positions for transition
-		        nodesOriginal.forEach(function(d) {
+		        nodesVisible.forEach(function(d) {
 		        	d.x_old = d.x + margin.left;
 		        	d.y_old = d.y + margin.top;
 		        });

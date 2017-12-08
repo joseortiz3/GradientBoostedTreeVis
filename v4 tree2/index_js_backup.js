@@ -160,32 +160,17 @@ function tree() {
 					// ****************** LINKS (edges) section ***************************
 	
 					// update the link's data
-					var linksOriginalGroups = svg.selectAll('g.link')
+					var linksOriginal = svg.selectAll('path.link')
 						.data(dataForVisibleChildren, function(d) { 
 							return d.id });
 	
 					// enter any new links at the parent's previous position
 					// (Draws new links)
-					var linksEntered = linksOriginalGroups.enter()
-						.insert('g')
-						.attr('class','link')
-						.attr('transform', function(child) {
-							var parent = child.parent;
-							var groupX = (parent.y + margin.top)
-							groupY = (child.x + margin.left)
-							var childX =  (child.y + margin.top) - groupX,
-							childY = (child.x + margin.left) - groupY,
-							parentX = (parent.y + margin.top) - groupX,
-							parentY = (parent.x + margin.left) - groupY;
-							console.log([parentX,parentY])
-							return 'translate(' + parentX + ',' + parentY + ')'; // Start at parent first.
-						})
-
-					linksEntered.append('path')
+					var linksEntered = linksOriginal.enter().insert('path', 'g')
 						.attr('class', 'link')
 						.attr('d', function(d) {
 							var o = {x: updateNode.x_old + margin.left, y: updateNode.y_old + margin.top};
-							return pathBetweenNodes(o, o); // start out with path going nowhere
+							return pathBetweenCoords(o, o); // start out with path going nowhere
 						});
 
 					// add labels for the nodes
@@ -211,27 +196,18 @@ function tree() {
 						});
 	
 					// UPDATE
-					var linksUpdated = linksEntered.merge(linksOriginalGroups);
-
-					/*
-					linksUpdated.transition().duration(duration)
-						.attr('transform', function(child) {
-							var parent = child.parent;
-							var childY = (child.x + margin.left);
-							var parentX = (parent.y + margin.top);
-							return 'translate(' + parentX + ',' + childY + ')';
-						})*/
+					var linksUpdated = linksEntered.merge(linksOriginal);
 	
-					// transition paths back to the parent element position
-					linksUpdated.transition().select('path.link').duration(duration)
-						.attr('d', function(d) { console.log('path'); return pathBetweenNodes(d, d.parent); }); //transition to path going somwhere
+					// transition back to the parent element position
+					linksUpdated.transition().duration(duration)
+						.attr('d', function(d) { return pathBetweenCoords(d, d.parent); }); //transition to path going somwhere
 	
 					// remove any exiting links
-					var linksExited = linksOriginalGroups.exit().select('path.link')
+					var linksExited = linksOriginal.exit()
 						.transition().duration(duration)
 						.attr('d', function(d) {
 							var o = {x: updateNode.x, y: updateNode.y};
-							return pathBetweenNodes(o, o); // transition to path going nowhere
+							return pathBetweenCoords(o, o); // transition to path going nowhere
 						})
 						.remove();
 	
@@ -242,25 +218,19 @@ function tree() {
 					});
 	
 					// creates a curved (diagonal) path from parent to the child nodes
-					function pathBetweenNodes(child, parent) { // passed objects must have .x and .y attributes
-						var groupX = (parent.y + margin.top)
-							groupY = (child.x + margin.left)
-						var childX =  (child.y + margin.top) - groupX,
-							childY = (child.x + margin.left) - groupY,
-							parentX = (parent.y + margin.top) - groupX,
-							parentY = (parent.x + margin.left) - groupY;
-								// Below only makes sense because the group is translated by parentX, childY
+					function pathBetweenCoords(child, parent) { // passed objects must have .x and .y attributes
 								// Start at x y
-						path = 'M ' + childX + ' ' + childY + ' '+ 
-								// curve from current position towards x1 y1 and towards...
-								'C ' + ((childX-parentX)/2) + ' ' + childY + 
-								// ...  x2 y2  .....
-								', ' + ((childX-parentX)/2) + ' ' + parentY +
-								// ... ending at final location x y
-								', ' + parentX + ' ' + parentY;
+						console.log(parent.y)
+						path = 'M ' + (child.y + margin.top) + ' ' + (child.x + margin.left) + ' '+ 
+								// curve from current position with slope x1 y1 to...
+								'C ' + ((child.y + parent.y + (margin.top * 2)) / 2) + ' ' + (child.x + margin.left) + 
+								// ... slope x2 y2 at .....
+								', ' + ((child.y + parent.y + (margin.top * 2)) / 2) + ' ' + (parent.x + margin.left) +
+								// ... final location x y
+								', ' + (parent.y + margin.top) + ' ' + (parent.x + margin.left);
 						return path;
 					}
-
+	
 					// toggle children visibility and update display
 					function toggleChildrenVisibility(clicked_node) {
 						if (clicked_node.children) { // if the clicked node has children
