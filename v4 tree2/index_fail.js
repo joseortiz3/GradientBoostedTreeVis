@@ -5,13 +5,12 @@
 function tree() {
 	
 		// Member variables
-        var data,
-            // default values
+		var data,
 			i           = 0, // dummy
 			duration    = 1000, // duration of transitions 
-			margin      = {top: 20, right: 10, bottom: 60, left: 30}, // margin of layout
+			margin      = {top: 20, right: 10, bottom: 30, left: 30}, // margin of layout
 			width       = 960 - margin.left - margin.right, // avilable width (not width of enclosing svg)
-			height      = 700 - margin.top - margin.bottom, // available height (not height of enclosing svg)
+			height      = 500 - margin.top - margin.bottom, // available height (not height of enclosing svg)
 			max_depth,
 			update,
 			edge_dict   // function for updating
@@ -24,8 +23,7 @@ function tree() {
 				// For some reason doing this is necessary...oh they were modified from default by .height() etc.
 				height = height - margin.top - margin.bottom;
 				width = width - margin.left - margin.right;
-                
-                debugger;
+				
 				// append the svg object (really, it refers to the g) to the selection
 				var svg = selection.append('svg')
 					.attr('width', width + margin.left + margin.right)
@@ -45,7 +43,7 @@ function tree() {
 				root.y_old = 0; // top edge of the triangle (? or rectangle)
 	
 				// collapse after the second level
-				root.children.forEach(expand);
+				root.children.forEach(collapse);
 				max_depth = root.height
 				updateFromNode(root);
 	
@@ -57,30 +55,20 @@ function tree() {
 						node._children.forEach(collapse); // also hide *their* children too, if any.
 						node.children = null;
 					}
-                }
-                
-                // collapse the node and all it's children (just .children -> ._children)
-				function expand(node) {
-					// children are visible children, _children are hidden children.
-					if (node._children) { // If there are visible children
-						node.children = node._children; // make them not visible anymore.
-						node.children.forEach(expand); // also hide *their* children too, if any.
-						node._children = null;
-					}
 				}
 	
 				// Only need to update a node and its children.
 				function updateFromNode(updateNode) {
 					// assigns the x and y position for the nodes
 					var d3_tree = d3_SizedTree(root);
-                    max_depth = d3_tree.height
+	
 					// compute the new tree layout
 					// This is not very intuitive, poor choice. ( replace with .children )
 					var dataForVisibleNodes = d3_tree.descendants(), // This is the root node and its children
 						dataForVisibleChildren = d3_tree.descendants().slice(1); // These are just the children
 	
 					// Controls the distance between nodes.
-					dataForVisibleNodes.forEach(function(node) { node.y = (node.depth/(max_depth+1)) * width; });
+					dataForVisibleNodes.forEach(function(d) { d.y = d.depth * 180; });
 	
 					// ****************** NODES section ***************************
 	
@@ -95,7 +83,7 @@ function tree() {
 					var nodesEntered = nodesOriginal.enter().append('g')
 						.attr('class', 'node')
 						.attr('transform', function(d) {
-							return 'translate(' + (updateNode.y_old) + ',' + (updateNode.x_old) + ')';
+							return 'translate(' + (updateNode.y_old + margin.top) + ',' + (updateNode.x_old + margin.left) + ')';
 						})
 						.on('click', toggleChildrenVisibility);
 	
@@ -122,23 +110,18 @@ function tree() {
 						})
 						// Text
 						.text(function(d) {
-                            return;
-							//return (d.children || d._children) ? d.data.id.capitalize() : d.data.id;
+							return (d.children || d._children) ? d.data.id.capitalize() : d.data.id;
 						});
 	
-					// add node text
+					// add number of children as text to node circle
 					nodesEntered.append('text')
-						.attr('x', 0)
-						.attr('y', 5)
+						.attr('x', -3)
+						.attr('y', 3)
 						.attr('cursor', 'pointer')
-                        .style('font-size', function(node) {
-                            var perc_depth = (max_depth-node.depth)/max_depth
-                            return Math.round(15*(perc_depth+2)/3) +'px';
-                        })
-                        .style('text-anchor','middle')
-                        .style('font-weight',700)
-						.text(function(node) {
-							return node.data.split_feature_name;
+						.style('font-size', '10px')
+						.text(function(d) {
+							if (d.children) return d.children.length;
+							else if (d._children) return d._children.length;
 						});
 	
 					// UPDATE (activate new nodes)
@@ -152,10 +135,7 @@ function tree() {
 	
 					// update the node attributes and style
 					nodesUpdated.select('circle.node')
-						.attr('r', function(node) {
-                            var perc_depth = (max_depth-node.depth)/max_depth
-                            return Math.round(40*(perc_depth+2)/3) +'px';
-                        })
+						.attr('r', 9)
 						.style('fill', function(d) {
 							return d._children ? 'lightsteelblue' : '#fff';
 						})
@@ -175,87 +155,83 @@ function tree() {
 	
 					// on exit reduce the opacity of text labels
 					nodesExited.select('text')
-                        .style('fill-opacity', 1e-6);
-
-                    // ------------------ Edge Lables ---------------
-                    var edgesOriginal = svg.selectAll('text.edgeLabel')
-                        .data(dataForVisibleChildren, function(d) {
-                            return d.id});
-
-                    var edgesEntered = edgesOriginal.enter().insert('text','g')
-                        .attr('class','edgeLabel')
-                        .attr('dy', '.35em')
-                        // Location
-                        .attr('y', function(child) {
-                            return updateNode.x_old;
-                        })
-                        .attr('x', function(child) {
-                            return updateNode.y_old;
-                        })
-                        .attr('text-anchor', function(child) {
-                            return 'middle';
-                        })
-                        // Text
-                        .text(function(child) {
-                            childName = child.data.name;
-                            parentName = child.parent.data.name;
-                            edgeLabel = edge_dict[parentName][childName];
-                            var thresh = Math.round(child.parent.data.threshold * 1000) / 1000
-                            if (edgeLabel == undefined) {return ''}
-                            else {return edgeLabel + ' ' + thresh}
-                        });
-
-                    var edgesUpdated = edgesEntered.merge(edgesOriginal);
-
-                    edgesUpdated.transition().duration(duration)
-                        .attr('y', function(child) {
-                            var x = margin.top + (child.x + 2*child.parent.x)/3
-                            return x+25;
-                        })
-                        .attr('x', function(child) {
-                            var y =  margin.left + (child.y + 2*child.parent.y)/3;
-                            return y;
-                        })
-
-                    var edgesExited = edgesOriginal.exit()
-                        .transition().duration(duration)
-                        .attr('y', function(child) {
-                            return updateNode.x + margin.top;
-                        })
-                        .attr('x', function(child) {
-                            return updateNode.y + margin.left;
-                        })
-                        .remove()
+						.style('fill-opacity', 1e-6);
 	
 					// ****************** LINKS (edges) section ***************************
 	
 					// update the link's data
-					var linksOriginal = svg.selectAll('path.link')
+					var linksOriginalGroups = svg.selectAll('g.link')
 						.data(dataForVisibleChildren, function(d) { 
 							return d.id });
 	
 					// enter any new links at the parent's previous position
 					// (Draws new links)
-					var linksEntered = linksOriginal.enter().insert('path', 'g')
+					var linksEntered = linksOriginalGroups.enter()
+						.insert('g','g.node')
+						.attr('class','link')
+						.attr('transform', function(child) {
+							var parent = child.parent;
+							var groupX = (parent.y + margin.top)
+							groupY = (child.x + margin.left)
+							var childX =  (child.y + margin.top) - groupX,
+							childY = (child.x + margin.left) - groupY,
+							parentX = (parent.y + margin.top) - groupX,
+							parentY = (parent.x + margin.left) - groupY;
+							console.log([parentX,parentY])
+							return 'translate(' + parentX + ',' + parentY + ')'; // Start at parent first.
+						})
+
+					linksEntered.append('path')
 						.attr('class', 'link')
 						.attr('d', function(d) {
-							var o = {x: updateNode.x_old - margin.left, y: updateNode.y_old - margin.top};
-							return pathBetweenCoords(o, o); // start out with path going nowhere
+							var o = {x: updateNode.x_old + margin.left, y: updateNode.y_old + margin.top};
+							return pathBetweenNodes(o, o); // start out with path going nowhere
+						});
+
+					// add labels for the nodes
+					linksEntered.append('text')
+						.attr('dy', '.35em')
+						// Location
+						.attr('x', function(d) {
+							return d.children || d._children ? 0 : 13;
+						})
+						.attr('y', function(d) {
+							return d.children || d._children ? -margin.top : 0;
+						})
+						.attr('text-anchor', function(d) {
+							return d.children || d._children ? 'middle' : 'start';
+						})
+						// Text
+						.text(function(d) {
+							childName = d.data.name;
+							parentName = d.parent.data.name;
+							edgeLabel = edge_dict[parentName][childName];
+							if (edgeLabel == undefined) {return ''}
+							else {return edgeLabel}
 						});
 	
 					// UPDATE
-					var linksUpdated = linksEntered.merge(linksOriginal);
-	
-					// transition back to the parent element position
+					var linksUpdated = linksEntered.merge(linksOriginalGroups);
+
+					/*
 					linksUpdated.transition().duration(duration)
-						.attr('d', function(d) { return pathBetweenCoords(d, d.parent); }); //transition to path going somwhere
+						.attr('transform', function(child) {
+							var parent = child.parent;
+							var childY = (child.x + margin.left);
+							var parentX = (parent.y + margin.top);
+							return 'translate(' + parentX + ',' + childY + ')';
+						})*/
+	
+					// transition paths back to the parent element position
+					linksUpdated.transition().select('path.link').duration(duration)
+						.attr('d', function(d) { console.log('path'); return pathBetweenNodes(d, d.parent); }); //transition to path going somwhere
 	
 					// remove any exiting links
-					var linksExited = linksOriginal.exit()
+					var linksExited = linksOriginalGroups.exit().select('path.link')
 						.transition().duration(duration)
 						.attr('d', function(d) {
 							var o = {x: updateNode.x, y: updateNode.y};
-							return pathBetweenCoords(o, o); // transition to path going nowhere
+							return pathBetweenNodes(o, o); // transition to path going nowhere
 						})
 						.remove();
 	
@@ -266,18 +242,25 @@ function tree() {
 					});
 	
 					// creates a curved (diagonal) path from parent to the child nodes
-					function pathBetweenCoords(child, parent) { // passed objects must have .x and .y attributes
+					function pathBetweenNodes(child, parent) { // passed objects must have .x and .y attributes
+						var groupX = (parent.y + margin.top)
+							groupY = (child.x + margin.left)
+						var childX =  (child.y + margin.top) - groupX,
+							childY = (child.x + margin.left) - groupY,
+							parentX = (parent.y + margin.top) - groupX,
+							parentY = (parent.x + margin.left) - groupY;
+								// Below only makes sense because the group is translated by parentX, childY
 								// Start at x y
-						path = 'M ' + (child.y + margin.top) + ' ' + (child.x + margin.left) + ' '+ 
-								// curve from current position with slope x1 y1 to...
-								'C ' + ((child.y + parent.y + (margin.top * 2)) / 2) + ' ' + (child.x + margin.left) + 
-								// ... slope x2 y2 at .....
-								', ' + ((child.y + parent.y + (margin.top * 2)) / 2) + ' ' + (parent.x + margin.left) +
-								// ... final location x y
-								', ' + (parent.y + margin.top) + ' ' + (parent.x + margin.left);
+						path = 'M ' + childX + ' ' + childY + ' '+ 
+								// curve from current position towards x1 y1 and towards...
+								'C ' + ((childX-parentX)/2) + ' ' + childY + 
+								// ...  x2 y2  .....
+								', ' + ((childX-parentX)/2) + ' ' + parentY +
+								// ... ending at final location x y
+								', ' + parentX + ' ' + parentY;
 						return path;
 					}
-	
+
 					// toggle children visibility and update display
 					function toggleChildrenVisibility(clicked_node) {
 						if (clicked_node.children) { // if the clicked node has children
