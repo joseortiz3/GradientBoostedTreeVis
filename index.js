@@ -68,7 +68,7 @@ function tree() {
 				
                 max_depth = root.height;
                 max_count = root.data.internal_count;
-                cmap = d3.scaleLinear().domain([-0.015,0,0.015]).range(['red','lightgray','blue'])
+                cmap = d3.scaleLinear().domain([-0.01,0,0.01]).range(['red','lightgray','blue'])
 				updateFromNode(root);
 	
 				// collapse the node and all it's children (just .children -> ._children)
