@@ -13,3 +13,19 @@
     stroke: #ccc;
     stroke-width: 2px;
 }
+
+
+div.tooltip {
+    position: absolute;
+    text-align: center;
+    /*
+    width: 60px;
+    height: 28px;
+    */
+    padding: 4px;
+    font: 15px sans-serif;
+    background: lightgray;
+    border: 3px;
+    border-radius: 8px;
+    pointer-events: none;
+  }

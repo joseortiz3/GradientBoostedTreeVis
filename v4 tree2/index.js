@@ -2,6 +2,9 @@
 
 // Acts as a class initilizer, returning this "chart" thing which is a function
 // but has member functions also.
+function quickRound(number) {
+    return Math.round(number * 1000) / 1000
+}
 function tree() {
 	
 		// Member variables
@@ -13,7 +16,8 @@ function tree() {
 			width       = 960 - margin.left - margin.right, // avilable width (not width of enclosing svg)
 			height      = 700 - margin.top - margin.bottom, // available height (not height of enclosing svg)
 			max_depth,
-			update,
+            update,
+            div,
 			edge_dict   // function for updating
 		;
 		// the function object that gets returned after all this.
@@ -25,7 +29,11 @@ function tree() {
 				height = height - margin.top - margin.bottom;
 				width = width - margin.left - margin.right;
                 
-                debugger;
+                // Tooltip
+                var div = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
 				// append the svg object (really, it refers to the g) to the selection
 				var svg = selection.append('svg')
 					.attr('width', width + margin.left + margin.right)
@@ -35,7 +43,10 @@ function tree() {
 					.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 	
 				// declares a tree layout and assigns the size of the tree
-				var d3_SizedTree = d3.tree().size([height, width]); // Allowed region
+                var d3_SizedTree = d3.tree().size([height, width]) // Allowed region
+                                .separation(function separation(a, b) {
+                                    return a.parent == b.parent ? 1 : 1.3;
+                                  });
 	
 				// assign parent, children, height, depth
 				var root = d3.hierarchy(data, function(d) { return d.children });
@@ -75,7 +86,6 @@ function tree() {
 					var d3_tree = d3_SizedTree(root);
                     max_depth = d3_tree.height
 					// compute the new tree layout
-					// This is not very intuitive, poor choice. ( replace with .children )
 					var dataForVisibleNodes = d3_tree.descendants(), // This is the root node and its children
 						dataForVisibleChildren = d3_tree.descendants().slice(1); // These are just the children
 	
@@ -133,7 +143,7 @@ function tree() {
 						.attr('cursor', 'pointer')
                         .style('font-size', function(node) {
                             var perc_depth = (max_depth-node.depth)/max_depth
-                            return Math.round(15*(perc_depth+2)/3) +'px';
+                            return quickRound(15*(perc_depth+2)/3) +'px';
                         })
                         .style('text-anchor','middle')
                         .style('font-weight',700)
@@ -154,12 +164,28 @@ function tree() {
 					nodesUpdated.select('circle.node')
 						.attr('r', function(node) {
                             var perc_depth = (max_depth-node.depth)/max_depth
-                            return Math.round(40*(perc_depth+2)/3) +'px';
+                            return quickRound(40*(perc_depth+2)/3) +'px';
                         })
 						.style('fill', function(d) {
 							return d._children ? 'lightsteelblue' : '#fff';
 						})
-						.attr('cursor', 'pointer');
+                        .attr('cursor', 'pointer')
+                        .on("mouseover", function(node) {
+                            div.transition()
+                                .duration(200)
+                                .style("opacity", .95);
+                            div.html('threshold:'+quickRound(node.data.threshold)
+                                +'<br>'+'split_on:'+node.data.split_feature_name
+                                +'<br>'+'name: '+node.data.name
+                            )
+                                .style("left", (node.y+margin.left) + "px")
+                                .style("top", (node.x+margin.top - 30) + "px");
+                        })
+                        .on("mouseout", function(node) {
+                            div.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                        });
 	
 					// remove any exiting nodes
 					var nodesExited = nodesOriginal.exit()
@@ -200,7 +226,7 @@ function tree() {
                             childName = child.data.name;
                             parentName = child.parent.data.name;
                             edgeLabel = edge_dict[parentName][childName];
-                            var thresh = Math.round(child.parent.data.threshold * 1000) / 1000
+                            var thresh = quickRound(child.parent.data.threshold)
                             if (edgeLabel == undefined) {return ''}
                             else {return edgeLabel + ' ' + thresh}
                         });
