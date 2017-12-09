@@ -1,3 +1,3 @@
 # GradientBoostedTreeVis
 
-The "v4 tree2" directory holds the progress of the tree displayer, adapted from elsewhere. Progress is very slow here.
+This is a demonstration project that uses d3 to create visualzations of boosted trees. Here it is demostrated on a financial dataset.
