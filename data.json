@@ -1,4 +1,4 @@
-allTrees = {
+{
     "0": {
         "params": {
             "boosting_type": "gbdt",

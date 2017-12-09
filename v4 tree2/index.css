@@ -1,6 +1,15 @@
+body {
+    margin: 50px;
+    margin-left: 100px;
+}
+
 .node circle {
-    fill: #fff;
     stroke: steelblue;
+    stroke-width: 3px;
+}
+
+.node ellipse {
+    stroke: burlywood;
     stroke-width: 3px;
 }
 
@@ -11,7 +20,6 @@
 .link {
     fill: none;
     stroke: #ccc;
-    stroke-width: 2px;
 }
 
 

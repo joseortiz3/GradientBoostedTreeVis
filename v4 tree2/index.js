@@ -11,13 +11,17 @@ function tree() {
         var data,
             // default values
 			i           = 0, // dummy
-			duration    = 1000, // duration of transitions 
+			duration    = 500, // duration of transitions 
 			margin      = {top: 20, right: 10, bottom: 60, left: 30}, // margin of layout
 			width       = 960 - margin.left - margin.right, // avilable width (not width of enclosing svg)
 			height      = 700 - margin.top - margin.bottom, // available height (not height of enclosing svg)
 			max_depth,
             update,
             div,
+            max_count,
+            cmap,
+            scale = 1.0,
+            startExpanded = true,
 			edge_dict   // function for updating
 		;
 		// the function object that gets returned after all this.
@@ -34,13 +38,13 @@ function tree() {
                 .attr("class", "tooltip")
                 .style("opacity", 0);
 
-				// append the svg object (really, it refers to the g) to the selection
+				// append the svg object to the selection
 				var svg = selection.append('svg')
 					.attr('width', width + margin.left + margin.right)
 					.attr('class','tree_svg')
 					.attr('height', height + margin.top + margin.bottom)
 				  .append('g') // Translates to top-left corner of allowed region (0,0)
-					.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+					.attr('transform', 'translate(' + margin.left + ',' + margin.top + ') scale('+scale+')');
 	
 				// declares a tree layout and assigns the size of the tree
                 var d3_SizedTree = d3.tree().size([height, width]) // Allowed region
@@ -55,9 +59,16 @@ function tree() {
 				root.x_old = height / 2; // left edge of the rectangle
 				root.y_old = 0; // top edge of the triangle (? or rectangle)
 	
-				// collapse after the second level
-				root.children.forEach(expand);
-				max_depth = root.height
+                // collapse after the second level
+                if (startExpanded) {
+                    root.children.forEach(expand);
+                } else {
+                    root.children.forEach(collapse);
+                }
+				
+                max_depth = root.height;
+                max_count = root.data.internal_count;
+                cmap = d3.scaleLinear().domain([-0.015,0,0.015]).range(['red','lightgray','blue'])
 				updateFromNode(root);
 	
 				// collapse the node and all it's children (just .children -> ._children)
@@ -110,12 +121,43 @@ function tree() {
 						.on('click', toggleChildrenVisibility);
 	
 					// add circle for the nodes
-					nodesEntered.append('circle')
+					nodesEntered.append('ellipse')
 						.attr('class', 'node')
-						.attr('r', 1e-6)
+                        .attr('rx', 1e-6)
+                        .attr('ry', 1e-6)
 						.style('fill', function(d) {
+                            if (d.data.leaf_value!=undefined) {
+                                var color = cmap(d.data.leaf_value);
+                                return color;
+                            }
 							return d._children ? 'lightsteelblue' : '#fff';
-						});
+                        })
+                        .on("mouseover", function(node) {
+                            div.transition()
+                                .duration(200)
+                                .delay(500)
+                                .style("opacity", .95);
+                            var tooltipText = ''
+                            Object.keys(node.data).forEach(function(key,index) {
+                                if (key == 'children' || key == 'label'){return}
+                                else {
+                                    if (isNaN(quickRound(node.data[key]))) {
+                                        tooltipText += key + ' : ' + node.data[key] + '<br>';
+                                    } else {
+                                        tooltipText += key + ' : ' + quickRound(node.data[key]) + '<br>';
+                                    }
+                                }
+                                // index: the ordinal position of the key within the object 
+                            });
+                            div.html(tooltipText)
+                                .style("left", (node.y+margin.left) + "px")
+                                .style("top", (node.x+margin.top - 60) + "px");
+                        })
+                        .on("mouseout", function(node) {
+                            div.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                        });
 	
 					// add labels for the nodes
 					nodesEntered.append('text')
@@ -134,7 +176,8 @@ function tree() {
 						.text(function(d) {
                             return;
 							//return (d.children || d._children) ? d.data.id.capitalize() : d.data.id;
-						});
+                        });
+                        
 	
 					// add node text
 					nodesEntered.append('text')
@@ -148,8 +191,37 @@ function tree() {
                         .style('text-anchor','middle')
                         .style('font-weight',700)
 						.text(function(node) {
+                            if (node.data.leaf_value!=undefined) {
+                                return quickRound(node.data.leaf_value);
+                            }
 							return node.data.split_feature_name;
-						});
+                        })
+                        .on("mouseover", function(node) {
+                            div.transition()
+                                .duration(200)
+                                .delay(500)
+                                .style("opacity", .95);
+                            var tooltipText = ''
+                            Object.keys(node.data).forEach(function(key,index) {
+                                if (key == 'children' || key == 'label'){return}
+                                else {
+                                    if (isNaN(quickRound(node.data[key]))) {
+                                        tooltipText += key + ' : ' + node.data[key] + '<br>';
+                                    } else {
+                                        tooltipText += key + ' : ' + quickRound(node.data[key]) + '<br>';
+                                    }
+                                }
+                                // index: the ordinal position of the key within the object 
+                            });
+                            div.html(tooltipText)
+                                .style("left", (node.y+margin.left) + "px")
+                                .style("top", (node.x+margin.top - 60) + "px");
+                        })
+                        .on("mouseout", function(node) {
+                            div.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                        });
 	
 					// UPDATE (activate new nodes)
 					var nodesUpdated = nodesEntered.merge(nodesOriginal); // merge() returns entered+updated nodes
@@ -161,31 +233,24 @@ function tree() {
 						});
 	
 					// update the node attributes and style
-					nodesUpdated.select('circle.node')
-						.attr('r', function(node) {
+					nodesUpdated.select('ellipse.node')
+						.attr('rx', function(node) {
                             var perc_depth = (max_depth-node.depth)/max_depth
-                            return quickRound(40*(perc_depth+2)/3) +'px';
+                            return quickRound(40*(perc_depth+3)/4) +'px';
                         })
-						.style('fill', function(d) {
-							return d._children ? 'lightsteelblue' : '#fff';
+                        .attr('ry', function(node) {
+                            var perc_depth = (max_depth-node.depth)/max_depth
+                            return quickRound(40*(perc_depth+0.3)/1.3) +'px';
+                        })
+                        .style('fill', function(d) {
+                            if (d.data.leaf_value!=undefined) {
+                                var color = cmap(d.data.leaf_value);
+                                return color;
+                            }
+							return d._children ? 'lightyellow' : '#fff';
 						})
                         .attr('cursor', 'pointer')
-                        .on("mouseover", function(node) {
-                            div.transition()
-                                .duration(200)
-                                .style("opacity", .95);
-                            div.html('threshold:'+quickRound(node.data.threshold)
-                                +'<br>'+'split_on:'+node.data.split_feature_name
-                                +'<br>'+'name: '+node.data.name
-                            )
-                                .style("left", (node.y+margin.left) + "px")
-                                .style("top", (node.x+margin.top - 30) + "px");
-                        })
-                        .on("mouseout", function(node) {
-                            div.transition()
-                            .duration(500)
-                            .style("opacity", 0);
-                        });
+                        
 	
 					// remove any exiting nodes
 					var nodesExited = nodesOriginal.exit()
@@ -196,9 +261,10 @@ function tree() {
 						.remove();
 	
 					// on exit reduce the node circles size to 0
-					nodesExited.select('circle')
-						.attr('r', 1e-6);
-	
+					nodesExited.select('ellipse')
+						.attr('rx', 1e-6)
+                        .attr('ry', 1e-6);
+
 					// on exit reduce the opacity of text labels
 					nodesExited.select('text')
                         .style('fill-opacity', 1e-6);
@@ -208,7 +274,7 @@ function tree() {
                         .data(dataForVisibleChildren, function(d) {
                             return d.id});
 
-                    var edgesEntered = edgesOriginal.enter().insert('text','g')
+                    var edgesEntered = edgesOriginal.enter().append('text')
                         .attr('class','edgeLabel')
                         .attr('dy', '.35em')
                         // Location
@@ -263,7 +329,17 @@ function tree() {
 					// enter any new links at the parent's previous position
 					// (Draws new links)
 					var linksEntered = linksOriginal.enter().insert('path', 'g')
-						.attr('class', 'link')
+                        .attr('class', 'link')
+                        .attr('stroke-width', function(node) {
+                            var num_count;
+                            if (node.data.internal_count != undefined) {
+                                num_count = node.data.internal_count
+                            }
+                            else {
+                                num_count = node.data.leaf_count;
+                            }
+                            return 0.2+(num_count/max_count)*30;
+                        })
 						.attr('d', function(d) {
 							var o = {x: updateNode.x_old - margin.left, y: updateNode.y_old - margin.top};
 							return pathBetweenCoords(o, o); // start out with path going nowhere
@@ -348,6 +424,18 @@ function tree() {
 			if (!arguments.length) return data;
 			data = value;
 			if (typeof updateData === 'function') updateData();
+			return chart;
+        };
+        
+        chart.startExpanded = function(value) {
+			if (!arguments.length) return startExpanded;
+			startExpanded = value;
+			return chart;
+        };
+        
+        chart.scale = function(value) {
+            if (!arguments.length) return scale;
+            scale = value;
 			return chart;
 		};
 	
