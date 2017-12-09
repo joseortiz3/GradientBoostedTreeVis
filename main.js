@@ -11,7 +11,7 @@ function setTree(selection, rootdata) {
 
 setTree(d3.select('#chart'),allTrees[5])
 
-var navHeight = 100
+var navHeight = 50
 
 var div = d3.select('div.tooltip');
 
@@ -20,15 +20,15 @@ var nav = d3.select('body').append('div')
 .selectAll('svg').data(Object.values(allTrees))
 .attr('transform','scale(0.1,0.1)')
 .enter().append('svg')
-.attr('width',100)
+.attr('width',navHeight*1.1)
 .attr('height',navHeight)
 .each(function(d,i,g) {
     var svg = d3.select(this);
     var strokeWidth = 4;
     svg.append('circle')
-    .attr('cx',50)
-    .attr('cy',50)
-    .attr('r',50-strokeWidth)
+    .attr('cx',navHeight/2)
+    .attr('cy',navHeight/2)
+    .attr('r',navHeight/2-strokeWidth)
     .attr('stroke','black')
     .attr('stroke-width',strokeWidth)
     .attr('fill','lightgrey')
@@ -69,10 +69,10 @@ var nav = d3.select('body').append('div')
     })
     svg.append('text')
     .attr('dy','.35em')
-    .attr('x',50)
-    .attr('y',50)
+    .attr('x',navHeight/2)
+    .attr('y',navHeight/2)
     .attr('text-anchor','middle')
-    .attr('font-size','50px')
+    .attr('font-size','40px')
     .attr('font-weight',800)
     .text(i)
     .on('click', function(d,i) {
